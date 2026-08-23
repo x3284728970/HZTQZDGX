@@ -2,7 +2,7 @@ name: 火种VPN 节点自动提取
 
 on:
   schedule:
-    - cron: '0 4 * * *'  # 每天 UTC 4:00 触发（北京时间 12:00）
+    - cron: '0 20 * * *'  # 每天 UTC 20:00 触发（北京时间 次日 04:00）
   workflow_dispatch:  # 允许手动触发
 
 jobs:
