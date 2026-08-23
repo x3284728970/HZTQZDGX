@@ -31,7 +31,7 @@ jobs:
 
       - name: 运行节点提取
         env:
-          GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
+          MY_GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
           HZ_USERNAME: ${{ secrets.HZ_USERNAME }}
           HZ_PASSWORD: ${{ secrets.HZ_PASSWORD }}
           GITHUB_WORKSPACE: ${{ github.workspace }}

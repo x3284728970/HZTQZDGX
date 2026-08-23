@@ -810,34 +810,9 @@ def upload_to_gist(content: str, token: str) -> Optional[str]:
         gist_id = r.json()["id"]
         raw_url = f"https://gist.githubusercontent.com/raw/{gist_id}/{filename}"
         print(f"{action} Gist 成功")
-        
-        # 生成短链
-        short_url = shorten_url(raw_url)
-        if short_url:
-            print(f"原始链接: {raw_url}")
-            print(f"短链:     {short_url}")
-        else:
-            print(f"短链生成失败，请使用原始链接: {raw_url}")
-        
+        print(f"[订阅地址] {raw_url}")
         return raw_url
     print(f"{action} Gist 失败: {r.status_code} {r.text[:300]}")
-    return None
-
-def shorten_url(url: str) -> Optional[str]:
-    """将长链接缩短为短链，失败时返回 None（不影响主流程）"""
-    services = [
-        f"https://is.gd/create.php?format=json&url={urllib.parse.quote(url)}",
-        f"https://tinyurl.com/api-create.php?url={urllib.parse.quote(url)}",
-    ]
-    for service in services:
-        try:
-            r = requests.get(service, timeout=10)
-            if r.status_code == 200:
-                text = r.text.strip()
-                if text.startswith("http"):
-                    return text
-        except Exception:
-            continue
     return None
 
 def main():
@@ -863,9 +838,9 @@ def main():
         sys.exit(1)
 
     # 读取生成的节点文件并上传到 Gist
-    gist_token = os.environ.get("GIST_TOKEN", "")
-    if not gist_token:
-        print("[!] GIST_TOKEN 未配置，跳过 Gist 上传")
+    my_github_token = os.environ.get("MY_GITHUB_TOKEN", "")
+    if not my_github_token:
+        print("[!] MY_GITHUB_TOKEN 未配置，跳过 Gist 上传")
     elif not os.path.exists(OUTPUT_FILE):
         print(f"[!] 节点文件不存在: {OUTPUT_FILE}，跳过 Gist 上传")
     else:
@@ -874,11 +849,14 @@ def main():
         lines = content.splitlines()
         node_content = "\n".join(l for l in lines if not l.startswith("#")) + "\n"
         if node_content.strip():
-            raw_url = upload_to_gist(node_content, gist_token)
+            raw_url = upload_to_gist(node_content, my_github_token)
             if raw_url:
                 print(f"\n{'=' * 60}")
                 print(f"[订阅地址] {raw_url}")
                 print(f"{'=' * 60}")
+                # 保存到文件，供后续步骤使用
+                with open("gist_url.txt", "w") as f:
+                    f.write(raw_url)
                 github_output = os.environ.get("GITHUB_OUTPUT")
                 if github_output:
                     with open(github_output, "a") as f:
