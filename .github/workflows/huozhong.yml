@@ -35,19 +35,9 @@ jobs:
           python3 -c "
           from Cython.Build import cythonize
           from setuptools import setup, Extension
-          import glob
-          
-          ext = Extension(
-              'huozhong_fetch',
-              sources=['huozhong_fetch.py'],
-              extra_compile_args=['-O2'],
-          )
-          setup(
-              ext_modules=cythonize(ext, compiler_directives={'language_level': 3}),
-              script_args=['build_ext', '--inplace']
-          )
-          )
-          # 验证生成
+          ext = Extension('huozhong_fetch', sources=['huozhong_fetch.py'])
+          setup(ext_modules=cythonize(ext, compiler_directives={'language_level': 3}), script_args=['build_ext', '--inplace'])
+          "
           ls -la huozhong_fetch*.so
 
       - name: 运行编译后的脚本
@@ -57,7 +47,6 @@ jobs:
           HZ_PASSWORD: ${{ secrets.HZ_PASSWORD }}
           GITHUB_WORKSPACE: ${{ github.workspace }}
         run: |
-          # 用 import 方式运行编译后的 .so
           python3 -c "
           import huozhong_fetch
           huozhong_fetch.main()
@@ -76,9 +65,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          # 添加编译后的 .so 文件
           git add huozhong_fetch*.so || true
-          # 删除旧脚本（如果有）
           git rm --cached huozhong_fetch.py || true
           git diff --cached --quiet && echo "无变化，跳过提交" && exit 0
           git commit -m "chore: 更新加密脚本 [skip ci]"
