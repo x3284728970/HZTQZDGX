@@ -1,0 +1,22 @@
+name: HZ自动更新
+
+on:
+  schedule:
+    - cron: '0 */48 * * *'  # 每 48 小时（约每 2 天）UTC 触发
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20  # 多线程提取可能需要较长时间
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install requests -q
+      - name: 更新节点
+        env:
+          GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
+        run: python3 huozhong_fetch.py
