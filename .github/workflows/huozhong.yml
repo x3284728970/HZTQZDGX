@@ -72,9 +72,9 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          # 添加编译后的 .so 文件（Python 会优先加载 .so，.py 仅用于下次编译）
           git add huozhong_fetch*.so || true
-          git rm --cached huozhong_fetch.py || true
-          git diff --cached --quiet && echo "无变化，跳过提交" && exit 0
+          git diff --cached --quiet && echo "加密文件无变化，跳过提交" && exit 0
           git commit -m "chore: 更新加密脚本 [skip ci]"
           git push
         env:
@@ -86,7 +86,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add huozhong_nodes.txt || true
-          git diff --cached --quiet && echo "无变化，跳过提交" && exit 0
+          git diff --cached --quiet && echo "节点文件无变化，跳过提交" && exit 0
           git commit -m "chore: 更新火种节点 [skip ci]"
           git push
         env:
