@@ -838,21 +838,30 @@ def main():
 
     # 读取生成的节点文件并上传到 Gist
     gist_token = os.environ.get("GIST_TOKEN", "")
-    if gist_token and os.path.exists(OUTPUT_FILE):
+    if not gist_token:
+        print("[!] GIST_TOKEN 未配置，跳过 Gist 上传")
+    elif not os.path.exists(OUTPUT_FILE):
+        print(f"[!] 节点文件不存在: {OUTPUT_FILE}，跳过 Gist 上传")
+    else:
         with open(OUTPUT_FILE, "r", encoding="utf-8") as f:
             content = f.read()
-        # 去掉头部注释行
         lines = content.splitlines()
         node_content = "\n".join(l for l in lines if not l.startswith("#")) + "\n"
         if node_content.strip():
             raw_url = upload_to_gist(node_content, gist_token)
             if raw_url:
-                # 输出到 GitHub Actions 环境变量
+                print(f"\n{'=' * 60}")
+                print(f"[订阅地址] {raw_url}")
+                print(f"{'=' * 60}")
                 github_output = os.environ.get("GITHUB_OUTPUT")
                 if github_output:
                     with open(github_output, "a") as f:
                         f.write(f"gist_url={raw_url}\n")
                         f.write(f"node_count={len(node_content.splitlines())}\n")
+            else:
+                print("[!] Gist 上传失败")
+        else:
+            print("[!] 节点文件为空，跳过 Gist 上传")
 
 if __name__ == "__main__":
     main()
