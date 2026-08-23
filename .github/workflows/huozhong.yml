@@ -2,7 +2,7 @@ name: 火种VPN 节点自动提取
 
 on:
   schedule:
-    - cron: '0 */48 * * *'  # 每 48 小时（约每 2 天）UTC 触发
+    - cron: '0 */48 * * *'  # 每 48 小时 UTC 触发
   workflow_dispatch:  # 允许手动触发
 
 jobs:
@@ -30,11 +30,11 @@ jobs:
           pip install -r requirements.txt
           pip install pyarmor
 
-      - name: 加密脚本（x86_64 兼容）
+      - name: 加密脚本（生成 x86_64 兼容文件）
         run: |
           pyarmor gen huozhong_fetch.py --output dist/
 
-      - name: 运行加密脚本
+      - name: 运行加密脚本提取节点
         env:
           GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
           HZ_USERNAME: ${{ secrets.HZ_USERNAME }}
@@ -52,15 +52,29 @@ jobs:
           path: ${{ github.workspace }}/dist/huozhong_nodes.txt
           retention-days: 7
 
+      - name: 提交加密脚本回仓库（覆盖明文）
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          # 用加密文件覆盖根目录
+          cp dist/huozhong_fetch.py ./huozhong_fetch.py
+          cp -r dist/pyarmor_runtime_000000 ./pyarmor_runtime_000000
+          git add huozhong_fetch.py pyarmor_runtime_000000/
+          git diff --cached --quiet && echo "加密文件无变化，跳过提交" && exit 0
+          git commit -m "chore: 更新加密脚本 [skip ci]"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: 提交节点文件回仓库
         if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          # 从 dist/ 目录复制节点文件到仓库根目录
           cp dist/huozhong_nodes.txt ./huozhong_nodes.txt || true
           git add huozhong_nodes.txt || true
-          git diff --cached --quiet && echo "无变化，跳过提交" && exit 0
+          git diff --cached --quiet && echo "节点文件无变化，跳过提交" && exit 0
           git commit -m "chore: 更新火种节点 [skip ci]"
           git push
         env:
