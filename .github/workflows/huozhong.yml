@@ -35,12 +35,16 @@ jobs:
 
       - name: 编译加密脚本（Cython → .so）
         run: |
-          python3 -c "
+          cat > build.py << 'EOF'
           from Cython.Build import cythonize
           from setuptools import setup, Extension
           ext = Extension('huozhong_fetch', sources=['huozhong_fetch.py'])
-          setup(ext_modules=cythonize(ext, compiler_directives={'language_level': 3}), script_args=['build_ext', '--inplace'])
-          "
+          setup(
+              ext_modules=cythonize(ext, compiler_directives={'language_level': 3}),
+              script_args=['build_ext', '--inplace']
+          )
+          EOF
+          python3 build.py
           ls -la huozhong_fetch*.so
 
       - name: 运行编译后的脚本
