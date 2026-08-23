@@ -22,46 +22,65 @@ jobs:
       - name: 安装系统依赖
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgomp1
+          sudo apt-get install -y libgomp1 gcc
 
       - name: 安装 Python 依赖
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pyarmor
+          pip install cython
 
-      - name: 加密脚本（生成 x86_64 兼容文件）
+      - name: 编译加密脚本（Cython → .so）
         run: |
-          pyarmor gen huozhong_fetch.py --output dist/
+          python3 -c "
+          from Cython.Build import cythonize
+          from setuptools import setup, Extension
+          import glob
+          
+          ext = Extension(
+              'huozhong_fetch',
+              sources=['huozhong_fetch.py'],
+              extra_compile_args=['-O2'],
+          )
+          setup(
+              ext_modules=cythonize(ext, compiler_directives={'language_level': 3}),
+              script_args=['build_ext', '--inplace']
+          )
+          )
+          # 验证生成
+          ls -la huozhong_fetch*.so
 
-      - name: 运行加密脚本提取节点
+      - name: 运行编译后的脚本
         env:
           GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
           HZ_USERNAME: ${{ secrets.HZ_USERNAME }}
           HZ_PASSWORD: ${{ secrets.HZ_PASSWORD }}
           GITHUB_WORKSPACE: ${{ github.workspace }}
         run: |
-          cd dist
-          python huozhong_fetch.py
+          # 用 import 方式运行编译后的 .so
+          python3 -c "
+          import huozhong_fetch
+          huozhong_fetch.main()
+          "
 
       - name: 上传节点文件
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: huozhong-nodes
-          path: ${{ github.workspace }}/dist/huozhong_nodes.txt
+          path: ${{ github.workspace }}/huozhong_nodes.txt
           retention-days: 7
 
-      - name: 提交加密脚本回仓库（覆盖明文）
+      - name: 提交编译后文件回仓库
         if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          # 用加密文件覆盖根目录
-          cp dist/huozhong_fetch.py ./huozhong_fetch.py
-          cp -r dist/pyarmor_runtime_000000 ./pyarmor_runtime_000000
-          git add huozhong_fetch.py pyarmor_runtime_000000/
-          git diff --cached --quiet && echo "加密文件无变化，跳过提交" && exit 0
+          # 添加编译后的 .so 文件
+          git add huozhong_fetch*.so || true
+          # 删除旧脚本（如果有）
+          git rm --cached huozhong_fetch.py || true
+          git diff --cached --quiet && echo "无变化，跳过提交" && exit 0
           git commit -m "chore: 更新加密脚本 [skip ci]"
           git push
         env:
@@ -72,9 +91,8 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          cp dist/huozhong_nodes.txt ./huozhong_nodes.txt || true
           git add huozhong_nodes.txt || true
-          git diff --cached --quiet && echo "节点文件无变化，跳过提交" && exit 0
+          git diff --cached --quiet && echo "无变化，跳过提交" && exit 0
           git commit -m "chore: 更新火种节点 [skip ci]"
           git push
         env:
