@@ -809,9 +809,35 @@ def upload_to_gist(content: str, token: str) -> Optional[str]:
     if r.status_code in (200, 201):
         gist_id = r.json()["id"]
         raw_url = f"https://gist.githubusercontent.com/raw/{gist_id}/{filename}"
-        print(f"{action} Gist 成功，直链: {raw_url}")
+        print(f"{action} Gist 成功")
+        
+        # 生成短链
+        short_url = shorten_url(raw_url)
+        if short_url:
+            print(f"原始链接: {raw_url}")
+            print(f"短链:     {short_url}")
+        else:
+            print(f"短链生成失败，请使用原始链接: {raw_url}")
+        
         return raw_url
     print(f"{action} Gist 失败: {r.status_code} {r.text[:300]}")
+    return None
+
+def shorten_url(url: str) -> Optional[str]:
+    """将长链接缩短为短链，失败时返回 None（不影响主流程）"""
+    services = [
+        f"https://is.gd/create.php?format=json&url={urllib.parse.quote(url)}",
+        f"https://tinyurl.com/api-create.php?url={urllib.parse.quote(url)}",
+    ]
+    for service in services:
+        try:
+            r = requests.get(service, timeout=10)
+            if r.status_code == 200:
+                text = r.text.strip()
+                if text.startswith("http"):
+                    return text
+        except Exception:
+            continue
     return None
 
 def main():
