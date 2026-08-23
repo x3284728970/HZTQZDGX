@@ -5,9 +5,6 @@ on:
     - cron: '0 */48 * * *'  # 每 48 小时 UTC 触发
   workflow_dispatch:  # 允许手动触发
 
-permissions:
-  contents: write
-
 jobs:
   extract:
     runs-on: ubuntu-latest
@@ -48,18 +45,6 @@ jobs:
           name: huozhong-nodes
           path: ${{ github.workspace }}/huozhong_nodes.txt
           retention-days: 7
-
-      - name: 提交节点文件回仓库
-        if: always()
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add huozhong_nodes.txt || true
-          git diff --cached --quiet && echo "无变化，跳过提交" && exit 0
-          git commit -m "chore: 更新火种节点 [skip ci]"
-          git push
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: 上传运行日志
         uses: actions/upload-artifact@v4
