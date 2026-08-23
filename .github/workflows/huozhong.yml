@@ -5,6 +5,9 @@ on:
     - cron: '0 */48 * * *'  # 每 48 小时 UTC 触发
   workflow_dispatch:  # 允许手动触发
 
+permissions:
+  contents: write
+
 jobs:
   extract:
     runs-on: ubuntu-latest
