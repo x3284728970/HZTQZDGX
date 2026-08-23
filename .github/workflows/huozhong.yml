@@ -5,13 +5,10 @@ on:
     - cron: '0 */48 * * *'  # 每 48 小时 UTC 触发
   workflow_dispatch:  # 允许手动触发
 
-permissions:
-  contents: write  # 给 Actions bot 写仓库权限
-
 jobs:
   extract:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@v4
@@ -25,39 +22,21 @@ jobs:
       - name: 安装系统依赖
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgomp1 gcc
+          sudo apt-get install -y libgomp1
 
       - name: 安装 Python 依赖
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install cython
 
-      - name: 编译加密脚本（Cython → .so）
-        run: |
-          cat > build.py << 'EOF'
-          from Cython.Build import cythonize
-          from setuptools import setup, Extension
-          ext = Extension('huozhong_fetch', sources=['huozhong_fetch.py'])
-          setup(
-              ext_modules=cythonize(ext, compiler_directives={'language_level': 3}),
-              script_args=['build_ext', '--inplace']
-          )
-          EOF
-          python3 build.py
-          ls -la huozhong_fetch*.so
-
-      - name: 运行编译后的脚本
+      - name: 运行节点提取
         env:
           GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
           HZ_USERNAME: ${{ secrets.HZ_USERNAME }}
           HZ_PASSWORD: ${{ secrets.HZ_PASSWORD }}
           GITHUB_WORKSPACE: ${{ github.workspace }}
         run: |
-          python3 -c "
-          import huozhong_fetch
-          huozhong_fetch.main()
-          "
+          python3 huozhong_fetch.py
 
       - name: 上传节点文件
         uses: actions/upload-artifact@v4
@@ -67,26 +46,13 @@ jobs:
           path: ${{ github.workspace }}/huozhong_nodes.txt
           retention-days: 7
 
-      - name: 提交编译后文件回仓库
-        if: always()
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          # 添加编译后的 .so 文件（Python 会优先加载 .so，.py 仅用于下次编译）
-          git add huozhong_fetch*.so || true
-          git diff --cached --quiet && echo "加密文件无变化，跳过提交" && exit 0
-          git commit -m "chore: 更新加密脚本 [skip ci]"
-          git push
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: 提交节点文件回仓库
         if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add huozhong_nodes.txt || true
-          git diff --cached --quiet && echo "节点文件无变化，跳过提交" && exit 0
+          git diff --cached --quiet && echo "无变化，跳过提交" && exit 0
           git commit -m "chore: 更新火种节点 [skip ci]"
           git push
         env:
