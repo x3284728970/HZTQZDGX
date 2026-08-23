@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 火种VPN 节点提取 — GitHub Actions 版
 每 2 天自动运行，提取 VIP 节点并上传到 Gist
@@ -21,13 +19,10 @@ from typing import List, Dict, Optional, Tuple
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-# ==================== 配置（从环境变量读取） ====================
 CONFIG = {
-    # 如果填写 username/password 则用手动模式，留空则全自动
     "username": os.environ.get("HZ_USERNAME", ""),
     "password": os.environ.get("HZ_PASSWORD", ""),
 
-    # API 服务器列表（留空则使用默认）
     "auth_servers": [
         "https://server2k.hzzf.cc/realms/vpn_application/protocol/openid-connect/token",
         "https://154.17.1.102/realms/vpn_application/protocol/openid-connect/token",
@@ -58,14 +53,12 @@ CONFIG = {
     "region_sort_order": ["香港", "新加坡", "日本", "台湾", "韩国", "美国"],
 }
 
-# ==================== 输出路径（GitHub Actions 环境） ====================
 WORKSPACE = os.environ.get("GITHUB_WORKSPACE", "/tmp/huozhong")
 OUTPUT_FILE = os.path.join(WORKSPACE, "huozhong_nodes.txt")
 PARTIAL_FILE = OUTPUT_FILE + ".partial.tmp"
 TOKEN_FILE = os.path.join(WORKSPACE, ".huozhong_token.json")
 ACCOUNT_FILE = os.path.join(WORKSPACE, ".huozhong_account.json")
 
-# ==================== 国旗映射 ====================
 REGION_FLAGS = {
     "香港": "🇭🇰", "澳门": "🇲🇴", "台湾": "🇹🇼", "新加坡": "🇸🇬", "马来西亚": "🇲🇾",
     "泰国": "🇹🇭", "越南": "🇻🇳", "日本": "🇯🇵", "韩国": "🇰🇷", "印度": "🇮🇳",
@@ -192,7 +185,6 @@ def clear_token_cache():
         except Exception:
             pass
 
-# ==================== 认证 ====================
 @retry_request(max_retries=2)
 def login(username: str, password: str) -> str:
     payload = {
@@ -221,7 +213,6 @@ def login(username: str, password: str) -> str:
             continue
     raise Exception("所有认证服务器均不可用")
 
-# ==================== 验证码与注册 ====================
 def solve_captcha() -> Optional[str]:
     try:
         import ddddocr
@@ -250,7 +241,6 @@ def solve_captcha() -> Optional[str]:
                 img_for_ocr = img_bytes
 
             captcha_text = _ocr.classification(img_for_ocr)
-            print(f"  [验证码] 第 {attempt} 次识别: {captcha_text}")
 
             val_resp = get_session().post(
                 f"{CONFIG['user_servers'][0]}/captcha/validate",
@@ -273,14 +263,13 @@ def register_account(is_main: bool = True, ref_code: str = "") -> Optional[Dict]
         username = random_string((7, 9)).lower()
         password = random_string((12, 15))
         device_id = str(uuid.uuid4())
-        print(f"[*] 注册{role_label}（第 {attempt}/{max_retries} 次）: {username}")
+        print(f"[*] 注册{role_label}（{attempt}/{max_retries}）...")
 
         captcha_token = solve_captcha()
         if not captcha_token:
-            print(f"  [!] 验证码识别失败，剩余重试 {max_retries - attempt} 次")
+            print(f"  [!] 验证码失败，剩余 {max_retries - attempt} 次")
             if attempt < max_retries:
                 wait = random.uniform(*delay_range)
-                print(f"  等待 {wait:.1f}s 后重试...")
                 time.sleep(wait)
             continue
 
@@ -300,19 +289,17 @@ def register_account(is_main: bool = True, ref_code: str = "") -> Optional[Dict]
             if resp.status_code in (200, 201):
                 print(f"  [+] {role_label}注册成功")
                 return {"username": username, "password": password, "deviceId": device_id}
-            print(f"  [!] 注册失败 (HTTP {resp.status_code}): {resp.text[:200]}")
+            print(f"  [!] 注册失败 (HTTP {resp.status_code})")
         except Exception as e:
-            print(f"  [!] 注册请求异常: {e}")
+            print(f"  [!] 注册异常: {e}")
 
         if attempt < max_retries:
             wait = random.uniform(*delay_range)
-            print(f"  等待 {wait:.1f}s 后重试...")
             time.sleep(wait)
 
-    print(f"[ERROR] {role_label}注册失败，已重试 {max_retries} 次")
+    print(f"[ERROR] {role_label}注册失败")
     return None
 
-# ==================== 邀请与 VIP ====================
 @retry_request(max_retries=2)
 def get_referral_code(token: str) -> str:
     headers = dict(COMMON_HEADERS)
@@ -389,7 +376,6 @@ def check_vip_status(token: str) -> bool:
             continue
     return False
 
-# ==================== 节点链接生成 ====================
 def generate_vless_link(config: Dict, node_name: str) -> str:
     vnext = config["settings"]["vnext"][0]
     user = vnext["users"][0]
@@ -478,7 +464,6 @@ def generate_trojan_link(config: Dict, node_name: str) -> str:
     remark = urllib.parse.quote(node_name)
     return f"trojan://{password}@{address}:{port}?{query}#{remark}"
 
-# ==================== 节点提取（两轮 + 失败诊断） ====================
 def fetch_node_list(token: str) -> List[Dict]:
     headers = dict(COMMON_HEADERS)
     headers["Authorization"] = f"Bearer {token}"
@@ -637,7 +622,6 @@ def extract_all_nodes(token: str) -> Tuple[str, int, int]:
     print(f"[+] 最终提取 {len(links)} 个节点，跳过 {skipped} 个，失败 {final_failed_count} 个")
     return content, len(links), skipped
 
-# ==================== 主流程 ====================
 def save_links(content: str):
     os.makedirs(os.path.dirname(os.path.abspath(OUTPUT_FILE)), exist_ok=True)
     header = f"# 火种VPN 节点订阅 - 生成时间: {time.strftime('%Y-%m-%d %H:%M:%S')}\n"
@@ -683,7 +667,6 @@ def mode_manual() -> bool:
 def mode_auto() -> bool:
     print("[*] 运行模式：全自动（注册 + 刷分 + 兑换 + 提取）")
 
-    # 优先使用缓存 Token
     cached = get_cached_token()
     if cached:
         print("[*] 发现未过期缓存 Token，直接尝试提取...")
@@ -691,7 +674,6 @@ def mode_auto() -> bool:
             return True
         print("[!] 缓存 Token 无效，继续走注册流程")
 
-    # 尝试复用已保存账号
     saved = load_saved_account()
     main_token = None
     if saved:
@@ -707,7 +689,6 @@ def mode_auto() -> bool:
             main_token = None
             print("[!] 已保存账号登录失败，重新注册")
 
-    # 注册新主号
     if not main_token:
         clear_token_cache()
         main_acc = register_account(is_main=True)
@@ -750,12 +731,10 @@ def mode_auto() -> bool:
             return False
         time.sleep(1)
 
-    # 检查 VIP
     if not check_vip_status(main_token):
         print("[!] 当前账号不是 VIP，无法提取节点")
         return False
 
-    # 提取节点
     return try_extract_with_token(main_token)
 
 def upload_to_gist(content: str, token: str) -> Optional[str]:
@@ -768,7 +747,6 @@ def upload_to_gist(content: str, token: str) -> Optional[str]:
         "Accept": "application/vnd.github.v3+json",
     }
 
-    # 查找已有 Gist
     gist_id = None
     page = 1
     while True:
@@ -819,9 +797,6 @@ def main():
     print("=" * 60)
     print("   火种VPN 节点提取（GitHub Actions 版）")
     print("=" * 60)
-    print(f"输出路径: {OUTPUT_FILE}")
-    print(f"首轮: {CONFIG['max_workers']} 线程 / {CONFIG['timeout']}s 超时 | "
-          f"补漏: {CONFIG['retry_workers']} 线程 / {CONFIG['retry_timeout']}s 超时\n")
 
     if CONFIG.get("username") and CONFIG.get("password"):
         success = mode_manual()
@@ -837,7 +812,6 @@ def main():
         print("\n[ERROR] 流程未完成")
         sys.exit(1)
 
-    # 读取生成的节点文件并上传到 Gist
     my_github_token = os.environ.get("MY_GITHUB_TOKEN", "")
     if not my_github_token:
         print("[!] MY_GITHUB_TOKEN 未配置，跳过 Gist 上传")
@@ -854,7 +828,6 @@ def main():
                 print(f"\n{'=' * 60}")
                 print(f"[订阅地址] {raw_url}")
                 print(f"{'=' * 60}")
-                # 保存到文件，供后续步骤使用
                 with open("gist_url.txt", "w") as f:
                     f.write(raw_url)
                 github_output = os.environ.get("GITHUB_OUTPUT")
