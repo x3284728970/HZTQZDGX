@@ -32,9 +32,14 @@ jobs:
       - name: 运行节点提取
         env:
           MY_GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
+          HZ_CLIENT_ID: ${{ secrets.HZ_CLIENT_ID }}
+          HZ_CLIENT_SECRET: ${{ secrets.HZ_CLIENT_SECRET }}
+          HZ_AUTH_SERVERS: ${{ secrets.HZ_AUTH_SERVERS }}
+          HZ_API_SERVERS: ${{ secrets.HZ_API_SERVERS }}
+          HZ_USER_SERVERS: ${{ secrets.HZ_USER_SERVERS }}
+          HZ_APP_SERVERS: ${{ secrets.HZ_APP_SERVERS }}
           HZ_USERNAME: ${{ secrets.HZ_USERNAME }}
           HZ_PASSWORD: ${{ secrets.HZ_PASSWORD }}
-          GITHUB_WORKSPACE: ${{ github.workspace }}
         run: |
           python3 huozhong_fetch.py
 

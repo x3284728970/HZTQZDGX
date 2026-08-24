@@ -23,21 +23,21 @@ CONFIG = {
     "username": os.environ.get("HZ_USERNAME", ""),
     "password": os.environ.get("HZ_PASSWORD", ""),
 
-    "auth_servers": [
+    "auth_servers": json.loads(os.environ.get("HZ_AUTH_SERVERS", '[]')) or [
         "https://server2k.hzzf.cc/realms/vpn_application/protocol/openid-connect/token",
         "https://154.17.1.102/realms/vpn_application/protocol/openid-connect/token",
         "https://kc.huozhong.us/realms/vpn_application/protocol/openid-connect/token",
     ],
-    "api_servers": [
+    "api_servers": json.loads(os.environ.get("HZ_API_SERVERS", '[]')) or [
         "https://8.218.46.170/api/nodesystem/user",
         "https://154.17.0.133/api/nodesystem/user",
         "https://api.huozhong.us/api/nodesystem/user",
     ],
-    "user_servers": ["https://server1a.hzzf.cc"],
-    "app_servers": ["https://8.218.46.170"],
+    "user_servers": json.loads(os.environ.get("HZ_USER_SERVERS", '[]')) or ["https://server1a.hzzf.cc"],
+    "app_servers": json.loads(os.environ.get("HZ_APP_SERVERS", '[]')) or ["https://8.218.46.170"],
 
-    "client_id": "vpn-user",
-    "client_secret": "i16bYq4sXxlGl3s",
+    "client_id": os.environ.get("HZ_CLIENT_ID", "vpn-user"),
+    "client_secret": os.environ.get("HZ_CLIENT_SECRET", ""),
 
     "sub_account_count": 1,
     "register_max_retries": 5,      # 注册失败最大重试次数
@@ -842,3 +842,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
