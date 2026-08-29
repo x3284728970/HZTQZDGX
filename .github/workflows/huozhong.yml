@@ -51,6 +51,78 @@ jobs:
           path: ${{ github.workspace }}/huozhong_nodes.txt
           retention-days: 7
 
+
+      - name: Upload to GitHub Gist
+        if: always()
+        env:
+          MY_GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
+        run: |
+          python3 - << 'PYEOF'
+          import os, sys, json, base64, requests
+
+          token = os.environ.get('MY_GITHUB_TOKEN')
+          if not token:
+              print("未设置 MY_GITHUB_TOKEN，跳过 Gist 上传")
+              sys.exit(0)
+
+          # 读取节点文件
+          node_file = os.path.join(os.environ.get('GITHUB_WORKSPACE', '.'), 'huozhong_nodes.txt')
+          if not os.path.exists(node_file):
+              print(f"节点文件不存在: {node_file}")
+              sys.exit(0)
+
+          with open(node_file, 'r', encoding='utf-8') as f:
+              content = f.read()
+
+          # 查找或创建 Gist
+          headers = {
+              'Authorization': f'token {token}',
+              'Accept': 'application/vnd.github.v3+json',
+          }
+
+          # 查找已有 Gist
+          gist_id = None
+          page = 1
+          while True:
+              r = requests.get('https://api.github.com/gists', headers=headers, params={'per_page': 100, 'page': page})
+              if r.status_code != 200:
+                  break
+              gists = r.json()
+              if not gists:
+                  break
+              for g in gists:
+                  if g.get('description') == '火种VPN 节点订阅（自动更新）':
+                      files = g.get('files', {})
+                      if 'huozhong_nodes.txt' in files:
+                          gist_id = g['id']
+                          break
+              if gist_id or len(gists) < 100:
+                  break
+              page += 1
+
+          # 上传或更新 Gist
+          payload = {
+              'description': '火种VPN 节点订阅（自动更新）',
+              'public': False,
+              'files': {'huozhong_nodes.txt': {'content': content}},
+          }
+
+          if gist_id:
+              r = requests.patch(f'https://api.github.com/gists/{gist_id}', headers=headers, json=payload)
+              action = '更新'
+          else:
+              r = requests.post('https://api.github.com/gists', headers=headers, json=payload)
+              action = '创建'
+
+          if r.status_code in (200, 201):
+              gist_id = r.json()['id']
+              raw_url = f'https://gist.githubusercontent.com/raw/{gist_id}/huozhong_nodes.txt'
+              print(f'{action} Gist 成功，订阅链接: {raw_url}')
+          else:
+              print(f'{action} Gist 失败: {r.status_code} {r.text[:300]}')
+              sys.exit(1)
+          PYEOF
+
       - name: 上传运行日志
         uses: actions/upload-artifact@v4
         if: failure()
