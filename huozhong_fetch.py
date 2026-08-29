@@ -379,32 +379,48 @@ def get_referral_code(token: str) -> str:
 def submit_referral(sub_token: str, device_id: str, ref_code: str) -> bool:
     headers = dict(COMMON_HEADERS)
     headers["Authorization"] = f"Bearer {sub_token}"
-    try:
-        get_session().post(
-            f"{CONFIG['user_servers'][0]}/users/loginDeviceInfo",
-            json={"deviceId": device_id, "deviceOS": "Android", "deviceType": "Mobile"},
-            headers=headers, timeout=CONFIG.get("login_timeout", 12))
-        resp = get_session().post(
-            f"{CONFIG['user_servers'][0]}/v1/referral/submit-referral",
-            params={"referralCode": ref_code},
-            headers=headers, timeout=CONFIG.get("login_timeout", 12))
-        data = resp.json()
-        if data.get("status") == "SUCCESSFUL":
-            return True
-        print(f"  [!] 绑定失败: {data}")
-    except Exception as e:
-        print(f"  [!] 邀请绑定异常: {e}")
+    # 尝试所有可能的 user server
+    candidates = list(CONFIG["user_servers"])
+    for api_srv in CONFIG.get("api_servers", []):
+        host = api_srv.replace("https://", "").replace("http://", "").split("/")[0]
+        candidate = f"https://{host}"
+        if candidate not in candidates:
+            candidates.append(candidate)
+    for srv in candidates:
+        try:
+            get_session().post(
+                f"{srv}/users/loginDeviceInfo",
+                json={"deviceId": device_id, "deviceOS": "Android", "deviceType": "Mobile"},
+                headers=headers, timeout=CONFIG.get("login_timeout", 30))
+            resp = get_session().post(
+                f"{srv}/v1/referral/submit-referral",
+                params={"referralCode": ref_code},
+                headers=headers, timeout=CONFIG.get("login_timeout", 30))
+            print(f"  [DEBUG] submit_referral {srv} -> HTTP {resp.status_code} {resp.text[:300]}")
+            data = resp.json()
+            if data.get("status") == "SUCCESSFUL":
+                return True
+            print(f"  [!] 绑定失败: {data}")
+        except Exception as e:
+            print(f"  [!] 邀请绑定异常 ({srv}): {e}")
     return False
 
 @retry_request(max_retries=2)
 def redeem_vip(token: str) -> bool:
     headers = dict(COMMON_HEADERS)
     headers["Authorization"] = f"Bearer {token}"
-    for app in CONFIG["app_servers"]:
+    # 尝试所有可能的 server（app_servers + api_servers 的 host）
+    candidates = list(CONFIG["app_servers"])
+    for api_srv in CONFIG.get("api_servers", []):
+        host = api_srv.replace("https://", "").replace("http://", "").split("/")[0]
+        candidate = f"https://{host}"
+        if candidate not in candidates:
+            candidates.append(candidate)
+    for app in candidates:
         try:
             resp = get_session().post(
                 f"{app}/v1/credits/redeem/2",
-                headers=headers, timeout=CONFIG.get("login_timeout", 12))
+                headers=headers, timeout=CONFIG.get("login_timeout", 30))
             print(f"  [DEBUG] redeem_vip {app} -> HTTP {resp.status_code}")
             if resp.status_code == 200:
                 return True
@@ -418,10 +434,17 @@ def redeem_vip(token: str) -> bool:
 def check_vip_status(token: str) -> bool:
     headers = dict(COMMON_HEADERS)
     headers["Authorization"] = f"Bearer {token}"
-    for app in CONFIG["app_servers"]:
+    # 尝试所有可能的 server
+    candidates = list(CONFIG["app_servers"])
+    for api_srv in CONFIG.get("api_servers", []):
+        host = api_srv.replace("https://", "").replace("http://", "").split("/")[0]
+        candidate = f"https://{host}"
+        if candidate not in candidates:
+            candidates.append(candidate)
+    for app in candidates:
         try:
             resp = get_session().get(f"{app}/users/role", headers=headers,
-                                     timeout=CONFIG.get("login_timeout", 12))
+                                     timeout=CONFIG.get("login_timeout", 30))
             if resp.status_code != 200:
                 continue
             text = resp.text.strip()
