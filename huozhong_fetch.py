@@ -87,11 +87,11 @@ CONFIG = {
 
     # ---- 自动化参数 ----
     "sub_account_count": 1,
-    "max_workers": 10,             # 首轮提取并发数
-    "timeout": 5,                  # 首轮单请求超时（秒）
-    "retry_workers": 4,            # 补漏轮并发数
-    "retry_timeout": 10,           # 补漏轮单请求超时（秒）
-    "login_timeout": 30,           # 登录/注册等关键请求超时（秒）
+    "max_workers": 5,              # 首轮提取并发数
+    "timeout": 3,                  # 首轮单请求超时（秒）
+    "retry_workers": 2,            # 补漏轮并发数
+    "retry_timeout": 6,            # 补漏轮单请求超时（秒）
+    "login_timeout": 15,           # 登录/注册等关键请求超时（秒）
     "register_delay_min": 0,
     "register_delay_max": 0,
 
