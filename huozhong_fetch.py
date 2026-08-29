@@ -355,11 +355,17 @@ def get_referral_code(token: str) -> str:
             resp = get_session().get(
                 f"{app}/v1/referral/v1.2/referral-poster/en_poster_1",
                 headers=headers, timeout=CONFIG.get("login_timeout", 12))
+            print(f"  [DEBUG] get_referral_code {app} -> HTTP {resp.status_code}")
             if resp.status_code == 200:
                 code = resp.json().get("referralCode")
                 if code:
                     return code
-        except Exception:
+                else:
+                    print(f"  [DEBUG] 响应内容: {resp.text[:300]}")
+            else:
+                print(f"  [DEBUG] 响应内容: {resp.text[:300]}")
+        except Exception as e:
+            print(f"  [DEBUG] {app} 异常: {e}")
             continue
     raise Exception("获取邀请码失败")
 
@@ -392,9 +398,13 @@ def redeem_vip(token: str) -> bool:
             resp = get_session().post(
                 f"{app}/v1/credits/redeem/2",
                 headers=headers, timeout=CONFIG.get("login_timeout", 12))
+            print(f"  [DEBUG] redeem_vip {app} -> HTTP {resp.status_code}")
             if resp.status_code == 200:
                 return True
-        except Exception:
+            else:
+                print(f"  [DEBUG] 响应内容: {resp.text[:300]}")
+        except Exception as e:
+            print(f"  [DEBUG] redeem_vip {app} 异常: {e}")
             continue
     raise Exception("兑换 VIP 失败")
 
