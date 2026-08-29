@@ -91,7 +91,7 @@ CONFIG = {
     "timeout": 5,                  # 首轮单请求超时（秒）
     "retry_workers": 4,            # 补漏轮并发数
     "retry_timeout": 10,           # 补漏轮单请求超时（秒）
-    "login_timeout": 12,           # 登录/注册等关键请求超时（秒）
+    "login_timeout": 30,           # 登录/注册等关键请求超时（秒）
     "register_delay_min": 0,
     "register_delay_max": 0,
 
@@ -346,15 +346,22 @@ def register_account(is_main: bool = True, ref_code: str = "") -> Optional[Dict]
     return None
 
 # ==================== 邀请与 VIP ====================
-@retry_request(max_retries=2)
+@retry_request(max_retries=5)
 def get_referral_code(token: str) -> str:
     headers = dict(COMMON_HEADERS)
     headers["Authorization"] = f"Bearer {token}"
-    for app in CONFIG["app_servers"]:
+    # 收集所有可能的 server（app_servers + api_servers 的 host 部分）
+    candidates = list(CONFIG["app_servers"])
+    for api_srv in CONFIG.get("api_servers", []):
+        host = api_srv.replace("https://", "").replace("http://", "").split("/")[0]
+        candidate = f"https://{host}"
+        if candidate not in candidates:
+            candidates.append(candidate)
+    for app in candidates:
         try:
             resp = get_session().get(
                 f"{app}/v1/referral/v1.2/referral-poster/en_poster_1",
-                headers=headers, timeout=CONFIG.get("login_timeout", 12))
+                headers=headers, timeout=CONFIG.get("login_timeout", 30))
             print(f"  [DEBUG] get_referral_code {app} -> HTTP {resp.status_code}")
             if resp.status_code == 200:
                 code = resp.json().get("referralCode")
